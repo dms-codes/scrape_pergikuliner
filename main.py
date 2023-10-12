@@ -23,13 +23,15 @@ def extract_contact_info(soup):
     return [extract_text(e) for e in contact_info]
 
 def extract_hours(soup):
-    return extract_text(soup.find_all('p', class_='small-screen-toggle')[-1].find_all('span', class_='left')[-1])
+    hours = soup.find_all('p', class_='small-screen-toggle')[-1].find_all('span', class_='left')[-1]
+    return extract_text(hours)
 
 def extract_payment_methods(soup):
     for e in soup.find('div', class_='info-list').find_all('li'):
         if 'Pembayaran' in extract_text(e):
             payment_method = extract_text(e).replace('Pembayaran', '')
-    return payment_method
+            return payment_method
+    return ''
 
 def extract_facilities(soup):
     facilities = ''.join([extract_text(e) for e in soup.find('div', class_='facility-list').find_all('label', class_='checked')])
@@ -39,7 +41,7 @@ def fetch_restaurant_data(session, url, resto):
     html = session.get(url, timeout=TIMEOUT, headers=HEADERS).content
     soup = bs(html, 'html.parser')
     restaurant_data = {
-        'Nama': '',
+        'Nama': extract_text(soup.find('div', class_='heading')),
         'Lokasi': '',
         'Tipe Kuliner': '',
         'Rasa': '',
@@ -57,16 +59,11 @@ def fetch_restaurant_data(session, url, resto):
     }
 
     try:
-        restaurant_data['Nama'] = extract_text(soup.find('div', class_='heading'))
-    except:
-        pass
-
-    try:
         location_cuisine = extract_text(resto.find('div', class_='item-group').find('div')).split('|')
         restaurant_data['Lokasi'], restaurant_data['Tipe Kuliner'] = location_cuisine
     except:
         pass
-    
+
     try:
         ratings = extract_ratings(soup)
         restaurant_data['Rasa'], restaurant_data['Suasana'], restaurant_data['Harga : Rasa'], restaurant_data['Pelayanan'], restaurant_data['Kebersihan'] = ratings
@@ -83,6 +80,7 @@ def fetch_restaurant_data(session, url, resto):
         restaurant_data['Jam Buka'] = extract_hours(soup)
     except:
         pass
+
     try:
         restaurant_data['Alamat'] = ''.join([e.strip() for e in soup.find('p', class_=None).find('span').text.split('\n')])
     except:
@@ -116,7 +114,6 @@ def main():
 
         for i in range(1, 126):
             url = f"{BASE_URL}{i}"
-            print(url)
             html = session.get(url, timeout=TIMEOUT, headers=HEADERS).content
             soup = bs(html, 'html.parser')
             for resto in soup.find_all('div', 'restaurant-result-wrapper best-rating'):
